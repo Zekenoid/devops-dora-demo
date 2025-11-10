@@ -10,38 +10,39 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pytest
-
       - name: Run tests
         run: pytest -q
 
   deploy:
     needs: build-and-test
     runs-on: ubuntu-latest
-    if: success()
+    # Remove the if: success() if you want to log failures too
     steps:
       - name: Simulate Deployment
         run: |
-          echo "Deployment successful at $(date)" >> deployment_log.txt
-      
+          if [ "${{ needs.build-and-test.result }}" == "success" ]; then
+            echo "Deployment successful at $(date --iso-8601=seconds)" >> deployment_log.txt
+            STATUS=SUCCESS
+          else
+            echo "Deployment failed at $(date --iso-8601=seconds)" >> deployment_log.txt
+            STATUS=FAILURE
+          fi
       - name: Record DORA Data
         run: |
-          echo "$(date --iso-8601=seconds),${{ github.run_number }},SUCCESS" >> dora_data.csv
-
+          echo "$(date --iso-8601=seconds),${{ github.run_number }},${STATUS}" >> dora_data.csv
       - name: Upload Metrics
         uses: actions/upload-artifact@v4
         with:
           name: dora-metrics
           path: dora_data.csv
+
 
